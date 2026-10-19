@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>定時音檔播放工作室</title>
+<style>
+:root{--bg:#090e1a;--panel:#111827;--panel2:#0d1423;--line:#253149;--text:#edf2ff;--muted:#98a6bf;--purple:#5747ed;--green:#079669;--red:#e91e4f;--gold:#f6c453}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:18px max(20px,calc((100vw - 1200px)/2));display:flex;justify-content:space-between;gap:15px;align-items:center;border-bottom:1px solid #202a3c;background:#080c16;position:sticky;top:0;z-index:2}
+.brand{display:flex;align-items:center;gap:12px;font-weight:750;font-size:18px}.logo{width:42px;height:42px;border-radius:14px;background:#27225c;display:grid;place-items:center;font-size:22px}
+.pill{border:1px solid #214b44;background:#0d2b29;color:#75e0c2;border-radius:30px;padding:7px 12px;font-size:12px}
+main{max-width:1200px;margin:22px auto;padding:0 18px 40px;display:grid;grid-template-columns:.88fr 1.12fr;gap:20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:18px;min-width:0}
+h2{font-size:16px;margin:0 0 16px;display:flex;align-items:center;gap:9px}h3{font-size:14px;margin:0 0 10px}p{color:var(--muted);font-size:13px}
+.timer{background:#070b16;border:1px solid #1c2638;border-radius:12px;text-align:center;padding:20px;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;margin-bottom:14px}
+.row{display:flex;gap:10px;align-items:center}.row>*{min-width:0;flex:1}
+button{border:0;border-radius:11px;padding:11px 14px;font-weight:700;cursor:pointer;color:white;background:#283247}button:disabled{opacity:.4;cursor:not-allowed}.red{background:var(--red)}.green{background:var(--green)}.purple{background:var(--purple)}.secondary{background:#202a3d;border:1px solid #2b3850}.small{padding:7px 10px;font-size:12px}
+label{display:block;color:#b5c1d5;font-size:12px;margin:13px 0 6px}input,select{width:100%;background:#0d1526;color:var(--text);border:1px solid #2a3850;border-radius:11px;padding:12px;font:inherit;min-width:0}input[type=file]{padding:9px}input[type=datetime-local]{color-scheme:dark}
+.note{background:#101b2b;border:1px solid #283950;padding:11px 13px;border-radius:10px;color:#afbdd1;font-size:12px}
+#recordings,#tasks{display:grid;gap:10px}.item{border:1px solid #26344b;background:var(--panel2);border-radius:12px;padding:12px}.itemtop{display:flex;justify-content:space-between;gap:10px;align-items:center}.item strong{font-size:13px}.item small{color:var(--muted);display:block;margin-top:4px}.empty{padding:22px;text-align:center;color:#74839c;border:1px dashed #26344b;border-radius:12px;font-size:13px}
+.status{font-size:12px;color:var(--gold);margin-top:8px;min-height:18px}audio{width:100%;margin-top:8px;height:34px}
+footer{max-width:1200px;margin:-20px auto 0;padding:0 18px 30px;color:#718099;font-size:12px}
+@media(max-width:800px){main{grid-template-columns:1fr}header{position:static}.row{flex-wrap:wrap}.row>*{flex-basis:100%}}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">◉</div><div>定時音檔播放工作室<small style="display:block;font-size:11px;color:#8b99b3;font-weight:400">錄音・音檔管理・排程播放</small></div></div><div class="pill" id="clock">讀取時間中…</div></header>
+<main>
+<section>
+ <div class="panel">
+  <h2>🎙️ 即時錄音工作室</h2>
+  <div class="timer" id="timer">00:00</div>
+  <div class="row"><button id="startRec" class="red">🎙 開始錄音</button><button id="stopRec" class="secondary" disabled>■ 停止錄音</button></div>
+  <div id="recStatus" class="status">準備就緒。請允許瀏覽器使用麥克風。</div>
+  <label for="recName">這段錄音的名稱</label><input id="recName" placeholder="例如：早自習提醒、午餐時間">
+  <div class="note" style="margin-top:12px">錄音完成後會自動保存到此瀏覽器。第一次使用請允許麥克風權限，建議使用 Chrome 或 Edge。</div>
+ </div>
+ <div class="panel"><h2>🎧 本機錄音與音檔</h2><div id="recordings"><div class="empty">尚無錄音或匯入的音檔</div></div></div>
+</section>
+<section>
+ <div class="panel">
+  <h2>✚ 新增定時播放任務</h2>
+  <label for="taskName">播放任務名稱</label><input id="taskName" placeholder="例如：課堂提醒、定時播放音樂">
+  <label>音檔來源</label>
+  <div class="row"><button id="chooseLibrary" class="purple">選擇已保存音檔</button><button id="chooseFile" class="secondary">上傳音檔</button></div>
+  <div id="libraryBox" style="display:none"><label for="audioSelect">已保存的音檔</label><select id="audioSelect"></select></div>
+  <div id="fileBox" style="display:none"><label for="audioFile">選擇 MP3、WAV、M4A 等音檔</label><input id="audioFile" type="file" accept="audio/*"></div>
+  <label for="audioUrl">或貼上「直接音檔網址」</label><input id="audioUrl" type="url" placeholder="https://example.com/audio.mp3">
+  <p>網址需直接指向音訊檔案。Vocaroo 分享頁面不一定是直接音檔網址，若無法播放，請先下載音檔再上傳。</p>
+  <label for="playAt">指定播放日期與時間</label><input id="playAt" type="datetime-local">
+  <div class="row" style="margin-top:14px"><button id="addTask" class="green">◷ 設定並加入播放任務</button><button id="testAudio" class="secondary">▶ 測試音檔</button></div>
+  <div id="taskStatus" class="status"></div>
+ </div>
+ <div class="panel"><div class="itemtop"><h2 style="margin:0">☷ 預定播放清單</h2><button id="clearDone" class="small secondary">清除已完成</button></div><div id="tasks" style="margin-top:15px"><div class="empty">尚未設定播放任務</div></div></div>
+ <div class="note">重要：請保持此網頁開啟、電腦不進入睡眠，並先點擊一次「測試音檔」或播放按鈕以解除部分瀏覽器的自動播放限制。此版本不會在瀏覽器關閉後繼續執行排程。</div>
+</section>
+</main>
+<footer>入門版 · 音檔保存在目前瀏覽器的本機儲存空間；不同裝置或瀏覽器不會自動同步。請勿上傳未經同意的私人錄音。</footer>
+<script>
+const $=id=>document.getElementById(id);
+let db, recorder, chunks=[], recStarted=0, recInterval=null, selectedFile=null, objectUrls={};
+const DB_NAME='scheduled-audio-studio', STORE='audio';
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>{db=req.result;resolve(db)};req.onerror=()=>reject(req.error)})}
+function saveAudio(item){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function getAudios(){return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result.sort((a,b)=>b.created-a.created));req.onerror=()=>reject(req.error)})}
+function deleteAudio(id){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+const getTasks=()=>JSON.parse(localStorage.getItem('audioTasks')||'[]');
+const putTasks=t=>localStorage.setItem('audioTasks',JSON.stringify(t));
+const id=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function timeString(s){return new Date(s).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}
+function fmt(ms){let s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function say(el,msg){$(el).textContent=msg}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function renderAudios(){
+ const audios=await getAudios(), box=$('recordings'), sel=$('audioSelect');
+ box.innerHTML='';sel.innerHTML='';
+ if(!audios.length)box.innerHTML='<div class="empty">尚無錄音或匯入的音檔</div>';
+ for(const a of audios){
+  const opt=document.createElement('option');opt.value=a.id;opt.textContent=a.name;sel.appendChild(opt);
+  const div=document.createElement('div');div.className='item';
+  div.innerHTML=`<div class="itemtop"><strong>${escapeHTML(a.name)}</strong><button class="small secondary" data-del="${a.id}">刪除</button></div><small>${timeString(a.created)} · ${a.file.type||'音訊檔'}</small><audio controls preload="metadata"></audio>`;
+  const audio=div.querySelector('audio');audio.src=URL.createObjectURL(a.blob);objectUrls[a.id]=audio.src;
+  div.querySelector('[data-del]').onclick=async()=>{await deleteAudio(a.id);renderAudios()};
+  box.appendChild(div);
+ }
+}
+async function loadSource(task){
+ if(task.audioId){const audios=await getAudios();const a=audios.find(x=>x.id===task.audioId);if(!a)throw Error('找不到音檔，可能已被刪除');return URL.createObjectURL(a.blob)}
+ if(task.url)return task.url;
+ if(selectedFile)return URL.createObjectURL(selectedFile);
+ throw Error('請先選擇音檔、上傳檔案或輸入音檔網址');
+}
+$('startRec').onclick=async()=>{
+ try{
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  chunks=[];recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  recorder.onstop=async()=>{
+   const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'}), name=$('recName').value.trim()||'錄音 '+new Date().toLocaleString('zh-TW');
+   await saveAudio({id:id(),name,blob,created:Date.now(),file:{type:blob.type}});
+   stream.getTracks().forEach(t=>t.stop());await renderAudios();say('recStatus','錄音已保存：'+name);
+  };
+  recorder.start();recStarted=Date.now();$('startRec').disabled=true;$('stopRec').disabled=false;
+  say('recStatus','正在錄音…');recInterval=setInterval(()=>$('timer').textContent=fmt(Date.now()-recStarted),250);
+ }catch(e){say('recStatus','無法開始錄音：請確認麥克風權限，並使用 HTTPS 網站。')}
+};
+$('stopRec').onclick=()=>{if(recorder&&recorder.state!=='inactive'){recorder.stop();clearInterval(recInterval);$('timer').textContent=fmt(Date.now()-recStarted);$('startRec').disabled=false;$('stopRec').disabled=true}};
+$('chooseLibrary').onclick=()=>{$('libraryBox').style.display='block';$('fileBox').style.display='none';selectedFile=null};
+$('chooseFile').onclick=()=>{$('fileBox').style.display='block';$('libraryBox').style.display='none';$('audioFile').click()};
+$('audioFile').onchange=e=>{selectedFile=e.target.files[0]||null;if(selectedFile){$('audioUrl').value='';say('taskStatus','已選擇檔案：'+selectedFile.name)}};
+$('audioSelect').onchange=()=>{selectedFile=null;$('audioUrl').value=''};
+function sourceChoice(){if($('audioUrl').value.trim())return {url:$('audioUrl').value.trim()};if(selectedFile)return {file:selectedFile};if($('libraryBox').style.display!=='none'&&$('audioSelect').value)return {audioId:$('audioSelect').value};return null}
+async function preview(){
+ try{const s=sourceChoice();if(!s)throw Error('請先選擇音檔');let src;if(s.file)src=URL.createObjectURL(s.file);else if(s.url)src=s.url;else src=await loadSource(s);
+  const a=new Audio(src);a.onended=()=>say('taskStatus','測試播放完成');await a.play();say('taskStatus','正在測試播放…若聽不到聲音，請檢查音量或網址。');
+ }catch(e){say('taskStatus','無法播放：'+e.message)}
+}
+$('testAudio').onclick=preview;
+$('addTask').onclick=async()=>{
+ try{
+  const name=$('taskName').value.trim()||'定時播放任務', date=$('playAt').value, s=sourceChoice();
+  if(!s)throw Error('請先選擇音檔、上傳檔案或輸入直接音檔網址');
+  if(!date||new Date(date).getTime()<=Date.now())throw Error('請設定一個未來的日期與時間');
+  let audioId=s.audioId||null,url=s.url||null;
+  if(s.file){audioId=id();await saveAudio({id:audioId,name:s.file.name,blob:s.file,created:Date.now(),file:{type:s.file.type}});selectedFile=null;$('audioFile').value='';await renderAudios()}
+  const tasks=getTasks();tasks.push({id:id(),name,audioId,url,playAt:new Date(date).getTime(),status:'pending'});putTasks(tasks);
+  $('taskName').value='';say('taskStatus','任務已加入播放清單。請保持此頁開啟。');renderTasks();
+ }catch(e){say('taskStatus',e.message)}
+};
+async function renderTasks(){
+ const tasks=getTasks().sort((a,b)=>a.playAt-b.playAt), box=$('tasks');box.innerHTML='';
+ if(!tasks.length){box.innerHTML='<div class="empty">尚未設定播放任務</div>';return}
+ for(const t of tasks){
+  const div=document.createElement('div');div.className='item';
+  const status=t.status==='done'?'已播放':t.status==='error'?'播放失敗':t.status==='playing'?'播放中':'等待中';
+  div.innerHTML=`<div class="itemtop"><strong>${escapeHTML(t.name)}</strong><span style="font-size:12px;color:${t.status==='done'?'#72d9b3':'#f6c453'}">${status}</span></div><small>播放時間：${timeString(t.playAt)}</small><div class="row" style="margin-top:10px"><button class="small secondary" data-play="${t.id}">▶ 立即播放</button><button class="small secondary" data-delete="${t.id}">刪除</button></div>`;
+  div.querySelector('[data-delete]').onclick=()=>{putTasks(getTasks().filter(x=>x.id!==t.id));renderTasks()};
+  div.querySelector('[data-play]').onclick=async()=>{await playTask(t.id,true)};
+  box.appendChild(div);
+ }
+}
+async function playTask(taskId,manual=false){
+ const tasks=getTasks(), t=tasks.find(x=>x.id===taskId);if(!t)return;
+ try{
+  const src=await loadSource(t), audio=new Audio(src);t.status='playing';putTasks(tasks);renderTasks();
+  audio.onended=()=>{const now=getTasks(),item=now.find(x=>x.id===taskId);if(item){item.status='done';putTasks(now);renderTasks()}};
+  audio.onerror=()=>{const now=getTasks(),item=now.find(x=>x.id===taskId);if(item){item.status='error';putTasks(now);renderTasks()}say('taskStatus','播放失敗，請確認網址可直接播放或音檔仍存在。')};
+  await audio.play();say('taskStatus',(manual?'手動':'定時')+'播放已開始：'+t.name);
+ }catch(e){t.status='error';putTasks(tasks);renderTasks();say('taskStatus','播放失敗：請先點擊頁面上的按鈕解除自動播放限制，並確認音檔來源。')}
+}
+$('clearDone').onclick=()=>{putTasks(getTasks().filter(t=>t.status!=='done'));renderTasks()};
+function tick(){
+ const now=Date.now();$('clock').textContent='現在時間 '+new Date(now).toLocaleTimeString('zh-TW',{hour12:false});
+ const tasks=getTasks();let changed=false;
+ for(const t of tasks){if(t.status==='pending'&&t.playAt<=now){t.status='playing';changed=true;playTask(t.id)}}
+ if(changed)putTasks(tasks);
+}
+(async()=>{try{await openDB();await renderAudios();await renderTasks();}catch(e){say('taskStatus','瀏覽器儲存空間無法使用，請改用最新版 Chrome 或 Edge。')}
+ const d=new Date(Date.now()+5*60000);d.setSeconds(0,0);$('playAt').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+ tick();setInterval(tick,1000);
+})();
+</script>
+</body></html>
